@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhishGuard AI | Deteksi Tautan Aman</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-light: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-dark: #0f172a;
+            --text-muted: #475569;
+            --danger-bg: #fef2f2;
+            --danger-text: #b91c1c;
+            --danger-border: #fca5a5;
+            --safe-bg: #f0fdf4;
+            --safe-text: #15803d;
+            --safe-border: #86efac;
+            --accent: #38bdf8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Navbar Sederhana */
+        nav {
+            background-color: var(--card-bg);
+            padding: 15px 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        nav i {
+            color: var(--primary);
+            font-size: 24px;
+        }
+
+        nav span {
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        /* Container Utama */
+        .container {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+            flex: 1;
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                grid-template-columns: 1fr 1.2fr;
+                align-items: start;
+            }
+        }
+
+        /* Bagian Edukasi (Kiri) */
+        .info-section {
+            padding: 20px 0;
+        }
+
+        .info-section h1 {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 15px;
+            line-height: 1.2;
+        }
+
+        .info-section h1 span {
+            color: var(--primary);
+        }
+
+        .info-section p {
+            color: var(--text-muted);
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .feature-list i {
+            color: var(--accent);
+            font-size: 18px;
+            margin-top: 3px;
+        }
+
+        .feature-list div h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .feature-list div p {
+            font-size: 14px;
+            margin-bottom: 0;
+        }
+
+        /* Bagian Interaksi (Kanan) */
+        .action-card {
+            background-color: var(--card-bg);
+            padding: 35px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+        }
+
+        input[type="url"] {
+            width: 100%;
+            padding: 15px 15px 15px 42px;
+            font-size: 15px;
+            border: 2px solid #cbd5e1;
+            border-radius: 10px;
+            transition: all 0.2s;
+            background-color: #f8fafc;
+        }
+
+        input[type="url"]:focus {
+            border-color: var(--primary);
+            background-color: #ffffff;
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        }
+        
+        .helper-text {
+            display: block;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 8px;
+        }
+
+        button {
+            width: 100%;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: #94a3b8; cursor: not-allowed; }
+
+        /* Loading & Result */
+        #loader {
+            display: none;
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 3px solid #f1f5f9;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px auto;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        #result-area {
+            display: none;
+            margin-top: 25px;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .res-icon { font-size: 45px; margin-bottom: 15px; }
+        .res-status { font-size: 18px; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 5px; }
+        .res-prob { font-size: 36px; font-weight: 800; margin-bottom: 10px; letter-spacing: -1px; }
+        .res-desc { font-size: 14px; margin-bottom: 20px; line-height: 1.5; padding: 0 10px; }
+        
+        .res-url-box {
+            background-color: rgba(255,255,255,0.6);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            word-break: break-all;
+            display: inline-block;
+        }
+
+        /* Variasi Status */
+        .status-aman { background-color: var(--safe-bg); border: 2px solid var(--safe-border); color: var(--safe-text); }
+        .status-bahaya { background-color: var(--danger-bg); border: 2px solid var(--danger-border); color: var(--danger-text); }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-top: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <i class="fa-solid fa-shield-halved"></i>
+        <span>PhishGuard AI</span>
+    </nav>
+
+    <div class="container">
+        <div class="info-section">
+            <h1>Cek Keamanan <span>Tautan</span> Anda Sebelum Mengklik.</h1>
+            <p>Phishing adalah penipuan yang memancing Anda untuk memberikan data pribadi melalui situs web palsu yang menyerupai aslinya. Gunakan sistem cerdas kami untuk memindai tautan mencurigakan secara instan.</p>
+            
+            <ul class="feature-list">
+                <li>
+                    <i class="fa-solid fa-brain"></i>
+                    <div>
+                        <h3>Analisis AI Cerdas</h3>
+                        <p>Menggunakan model XGBoost yang dilatih dengan ratusan ribu pola tautan berbahaya[cite: 164, 169].</p>
+                    </div>
+                </li>
+                <li>
+                    <i class="fa-solid fa-bolt"></i>
+                    <div>
+                        <h3>Pemeriksaan Instan</h3>
+                        <p>Hanya butuh beberapa detik untuk mengekstrak fitur struktur URL dan memberikan hasil[cite: 217, 218].</p>
+                    </div>
+                </li>
+                <li>
+                    <i class="fa-solid fa-user-shield"></i>
+                    <div>
+                        <h3>Mudah Digunakan</h3>
+                        <p>Cukup salin dan tempel tautan yang Anda ragukan, kami yang menganalisisnya[cite: 164].</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+        <div class="action-card">
+            <form id="phishing-form">
+                <div class="input-group">
+                    <label for="url">Tautan (URL) yang ingin diperiksa:</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-link"></i>
+                        <input type="url" id="url" name="url" placeholder="Cth: https://www.website-mencurigakan.com" required autocomplete="off">
+                    </div>
+                    <span class="helper-text">Pastikan menyertakan http:// atau https://</span>
+                </div>
+                <button type="submit" id="btn-submit">
+                    <i class="fa-solid fa-magnifying-glass"></i> Pindai Tautan
+                </button>
+            </form>
+
+            <div id="loader">
+                <div class="spinner"></div>
+                <p style="color: var(--text-muted); font-size: 14px;">Mesin AI sedang membedah struktur tautan...</p>
+            </div>
+
+           <div id="result-area">
+                <i id="res-icon" class="res-icon fa-solid"></i>
+                <div class="res-status" id="res-status">STATUS</div>
+                <div class="res-prob" id="res-prob">0%</div>
+                <div class="res-desc" id="res-desc">Deskripsi singkat akan muncul di sini.</div>
+                
+                <div class="res-url-box">
+                    <strong>URL Diproses:</strong> <br> <span id="res-url">url</span>
+                </div>
+
+                <div id="xai-area" style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(0,0,0,0.1);">
+                    <h4 style="font-size: 14px; color: #475569; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <i class="fa-solid fa-microchip"></i> Bagaimana AI Mengambil Keputusan?
+                    </h4>
+                    
+                   <div id="xai-text" style="background-color: #f8fafc; padding: 15px; border-radius: 8px; font-size: 14px; color: #334155; text-align: left; line-height: 1.6; border-left: 4px solid var(--primary); margin-bottom: 15px;">
+                        Penjelasan akan muncul di sini.
+                    </div>
+
+                    <img id="shap-image" src="" alt="Grafik SHAP" style="width: 100%; border-radius: 8px; border: 1px solid #e2e8f0; display: block;">
+                    
+                    <p style="font-size: 11px; color: #94a3b8; margin-top: 10px; text-align: left;">
+                        *Grafik di atas menggunakan metode Explainable AI (SHAP). Balok biru (-) menarik prediksi ke arah Phishing (Bahaya), sedangkan balok merah (+) mendorong prediksi ke arah Legitimate (Aman).
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        Dikembangkan sebagai Proyek Tugas Akhir Teknologi Rekayasa Komputer
+    </footer>
+
+    <script>
+        document.getElementById('phishing-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const urlInput = document.getElementById('url').value;
+            const btn = document.getElementById('btn-submit');
+            const loader = document.getElementById('loader');
+            const resultArea = document.getElementById('result-area');
+            const resIcon = document.getElementById('res-icon');
+            const resDesc = document.getElementById('res-desc');
+            const shapImage = document.getElementById('shap-image');
+            const xaiText = document.getElementById('xai-text');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Mengekstrak Fitur & Menggambar XAI...';
+            resultArea.style.display = 'none';
+            loader.style.display = 'block';
+
+            const formData = new FormData();
+            formData.append('url', urlInput);
+
+            fetch('/predict', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                loader.style.display = 'none';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Pindai Tautan Lain';
+                resultArea.style.display = 'block';
+                
+                if(data.error) {
+                    alert("Terjadi kesalahan sistem: " + data.error);
+                    console.log(data.trace);
+                    return;
+                }
+
+                // Update UI Data Dasar
+                document.getElementById('res-status').innerText = data.status;
+                document.getElementById('res-prob').innerText = data.confidence + "%";
+                document.getElementById('res-url').innerText = data.url_normalized;
+
+                // Terapkan Gambar SHAP (Base64) dan Teks Penjelasan
+                shapImage.src = "data:image/png;base64," + data.shap_image;
+                xaiText.innerText = data.shap_text;
+
+                // Terapkan Styling dan Pesan Deskriptif
+                resultArea.className = ''; 
+                
+                if(data.status.includes('AMAN')) {
+                    resultArea.classList.add('status-aman');
+                    resIcon.className = 'res-icon fa-solid fa-shield-check';
+                    xaiText.style.borderLeftColor = 'var(--safe-text)';
+                    
+                    if(parseFloat(data.confidence) > 90) {
+                        resDesc.innerText = "Sistem sangat yakin bahwa tautan ini aman untuk dikunjungi.";
+                    } else {
+                        resDesc.innerText = "Tautan ini terlihat aman, namun tetaplah berhati-hati.";
+                    }
+                } else {
+                    resultArea.classList.add('status-bahaya');
+                    resIcon.className = 'res-icon fa-solid fa-triangle-exclamation';
+                    xaiText.style.borderLeftColor = 'var(--danger-text)';
+                    
+                    if(parseFloat(data.confidence) > 90) {
+                        resDesc.innerText = "SANGAT BERBAHAYA! Pola kuat penipuan Phishing terdeteksi.";
+                    } else {
+                        resDesc.innerText = "Hati-hati! Tautan ini memiliki ciri-ciri umum penipuan phishing.";
+                    }
+                }
+            })
+            .catch(error => {
+                loader.style.display = 'none';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Coba Lagi';
+                alert('Gagal menghubungi server backend.');
+            });
+        });
+    </script>
+</body>
+</html>
