@@ -1,10 +1,10 @@
 import matplotlib
+import numpy as np
 # Sangat Penting: Gunakan 'Agg' agar matplotlib bisa berjalan di server web tanpa error tampilan
-matplotlib.use('Agg') 
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from flask import Flask, render_template, request, jsonify
-from xgboost import XGBClassifier
 import joblib
 import pandas as pd
 import pickle
@@ -15,14 +15,14 @@ from feature_extraction import extract_features, normalize_url
 
 app = Flask(__name__)
 
-# Load model XGBoost
-model = XGBClassifier()
-model.load_model("xgboost_phishing_model.json")
+# 1. KEMBALI MENGGUNAKAN PICKLE (Agar tidak perlu injeksi manual n_classes_)
+with open('xgboost_phishing_model.pkl', 'rb') as f:
+    model = pickle.load(f)
 
 # Load urutan kolom
 X_columns = joblib.load("feature_columns.pkl")
 
-# Buat explainer SHAP satu kali di awal agar proses cepat
+# 2. TETAP GUNAKAN BYPASS BOOSTER UNTUK SHAP (Agar terhindar dari bug base_score)
 explainer = shap.TreeExplainer(model.get_booster())
 
 # Kamus Terjemahan untuk Orang Awam
@@ -47,18 +47,18 @@ def home():
 def predict():
     try:
         url_input = request.form['url']
-        
+
         # 1. Ekstrak & Prediksi
         features = extract_features(url_input)
         features_df = pd.DataFrame([features])
-        features_df = features_df[X_columns] 
-        
+        features_df = features_df[X_columns]
+
         pred = int(model.predict(features_df)[0])
         prob = model.predict_proba(features_df)
-        
+
         phishing_prob = float(round(prob[0][0] * 100, 1))
         legitimate_prob = float(round(prob[0][1] * 100, 1))
-        
+
         if pred == 1:
             status = "AMAN (LEGITIMATE)"
             confidence = legitimate_prob
@@ -71,13 +71,13 @@ def predict():
         # ==========================================
         shap_values = explainer(features_df)
         sv = shap_values[0]
-        
+
         # Buat Gambar Grafik
         plt.figure(figsize=(7, 4))
         shap.plots.waterfall(sv, show=False)
         plt.title("Analisis Faktor Penentu Keputusan AI", pad=10, fontsize=12)
         plt.tight_layout()
-        
+
         # Convert Gambar ke Base64 String
         img_buffer = io.BytesIO()
         plt.savefig(img_buffer, format='png', dpi=120)
@@ -91,10 +91,10 @@ def predict():
         feature_names = features_df.columns.tolist()
         vals = sv.values
         impacts = sorted(zip(feature_names, vals), key=lambda x: abs(x[1]), reverse=True)
-        
+
         # Nilai negatif (v < 0) menarik ke arah 0 (Phishing) -> Ini adalah Alasan Bahaya
         top_red_flags = [f for f, v in impacts if v < 0][:2]
-        
+
         # Nilai positif (v > 0) mendorong ke arah 1 (Aman) -> Ini adalah Alasan Aman
         top_green_flags = [f for f, v in impacts if v > 0][:2]
 
@@ -116,7 +116,7 @@ def predict():
             'shap_image': img_base64,
             'shap_text': alasan_teks
         })
-        
+
     except Exception as e:
         import traceback
         return jsonify({'error': str(e), 'trace': traceback.format_exc()})
