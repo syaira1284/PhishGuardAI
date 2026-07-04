@@ -9,7 +9,7 @@ import pickle
 import shap
 import io
 import base64
-import json  # TAMBAHAN PENTING: import json untuk trik anti-bug
+import json  # TAMBAHAN 1: Import json wajib ditambahkan untuk menjalankan patch config
 from feature_extraction import extract_features, normalize_url
 
 app = Flask(__name__)
@@ -22,28 +22,39 @@ with open('feature_columns.pkl', 'rb') as f:
     X_columns = pickle.load(f)
 
 # =======================================================
-# TRIK ANTI-BUG: Patch untuk mengatasi bentrok SHAP & XGBoost 2.0
+# TAMBAHAN 2: FIX SHAP & XGBOOST 2.0 (PATCH BOOSTER)
 # =======================================================
-original_loads = json.loads
-def patched_loads(s, *args, **kwargs):
-    parsed = original_loads(s, *args, **kwargs)
-    if isinstance(parsed, dict) and "learner" in parsed:
-        try:
-            params = parsed["learner"]["learner_model_param"]
-            if "base_score" in params:
-                val = str(params["base_score"])
-                # Hapus kurung siku jika ada (contoh: "[0.5]" menjadi "0.5")
-                if val.startswith('[') and val.endswith(']'):
-                    params["base_score"] = val.strip('[]')
-        except Exception:
-            pass
-    return parsed
+# Mengambil config asli dari model XGBoost
+booster = model.get_booster()
+original_save_config = booster.save_config
 
-# Terapkan trik saat membuat explainer agar tidak terjadi ValueError
-json.loads = patched_loads
+def patched_save_config(*args, **kwargs):
+    # Ambil konfigurasi, lalu ubah format string JSON ke dictionary Python
+    config_str = original_save_config(*args, **kwargs)
+    config = json.loads(config_str)
+    try:
+        # Cari nilai base_score yang menyebabkan error
+        val = str(config["learner"]["learner_model_param"]["base_score"])
+        
+        # Jika ada kurung siku (misal: "[0.5]"), buang kurungnya menjadi "0.5"
+        if val.startswith('[') and val.endswith(']'):
+            config["learner"]["learner_model_param"]["base_score"] = val.strip('[]')
+    except Exception:
+        pass
+        
+    # Kembalikan lagi ke format string JSON
+    return json.dumps(config)
+
+# Pasang jebakan: Ganti fungsi bawaan dengan fungsi patch kita
+booster.save_config = patched_save_config
+
+# Buat explainer SHAP satu kali di awal agar proses cepat (Sekarang akan berhasil)
 explainer = shap.TreeExplainer(model)
-json.loads = original_loads # Kembalikan fungsi json ke normal
+
+# Kembalikan fungsi ke normal agar tidak mengganggu proses XGBoost selanjutnya
+booster.save_config = original_save_config
 # =======================================================
+
 
 # Kamus Terjemahan untuk Orang Awam
 TERJEMAHAN_FITUR = {
@@ -104,7 +115,7 @@ def predict():
         
         # Convert Gambar ke Base64 String
         img_buffer = io.BytesIO()
-        plt.savefig(img_buffer, format='png', dpi=120, bbox_inches='tight')
+        plt.savefig(img_buffer, format='png', dpi=120)
         img_buffer.seek(0)
         img_base64 = base64.b64encode(img_buffer.read()).decode('utf-8')
         plt.close() # Tutup plot agar RAM tidak bocor
