@@ -19,6 +19,10 @@ app = Flask(__name__)
 model = XGBClassifier()
 model.load_model("xgboost_phishing_model.json")
 
+# Tambahkan kembali atribut sklearn yang hilang setelah load JSON
+model.n_classes_ = 2
+model.classes_ = [0, 1]
+
 # Load urutan kolom
 X_columns = joblib.load("feature_columns.pkl")
 
@@ -56,12 +60,8 @@ def predict():
         pred = int(model.predict(features_df)[0])
         prob = model.predict_proba(features_df)
         
-        classes = list(model.classes_)
-        phishing_idx   = classes.index(0) 
-        legitimate_idx = classes.index(1) 
-        
-        phishing_prob = float(round(prob[0][phishing_idx] * 100, 1))
-        legitimate_prob = float(round(prob[0][legitimate_idx] * 100, 1))
+        phishing_prob = float(round(prob[0][0] * 100, 1))
+        legitimate_prob = float(round(prob[0][1] * 100, 1))
         
         if pred == 1:
             status = "AMAN (LEGITIMATE)"
@@ -74,7 +74,7 @@ def predict():
         # 2. PROSES XAI (SHAP) REAL-TIME
         # ==========================================
         shap_values = explainer(features_df)
-        sv = shap_values[1][0] if isinstance(shap_values, list) else shap_values[0]
+        sv = shap_values[0]
         
         # Buat Gambar Grafik
         plt.figure(figsize=(7, 4))
