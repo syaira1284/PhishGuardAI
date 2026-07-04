@@ -1,0 +1,12 @@
+Flask
+matplotlib
+pandas
+numpy
+scikit-learn
+xgboost
+shap
+joblib
+tldextract
+python-whois
+requests
+beautifulsoup4
