@@ -4,57 +4,26 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from flask import Flask, render_template, request, jsonify
+from xgboost import XGBClassifier
+import joblib
 import pandas as pd
 import pickle
 import shap
 import io
 import base64
-import json  # TAMBAHAN 1: Import json wajib ditambahkan untuk menjalankan patch config
 from feature_extraction import extract_features, normalize_url
 
 app = Flask(__name__)
 
-# Load model dan urutan kolom
-with open('xgboost_phishing_model.pkl', 'rb') as f:
-    model = pickle.load(f)
+# Load model XGBoost
+model = XGBClassifier()
+model.load_model("xgboost_phishing_model.json")
 
-with open('feature_columns.pkl', 'rb') as f:
-    X_columns = pickle.load(f)
+# Load urutan kolom
+X_columns = joblib.load("feature_columns.pkl")
 
-# =======================================================
-# TAMBAHAN 2: FIX SHAP & XGBOOST 2.0 (PATCH BOOSTER)
-# =======================================================
-# Mengambil config asli dari model XGBoost
-booster = model.get_booster()
-original_save_config = booster.save_config
-
-def patched_save_config(*args, **kwargs):
-    # Ambil konfigurasi, lalu ubah format string JSON ke dictionary Python
-    config_str = original_save_config(*args, **kwargs)
-    config = json.loads(config_str)
-    try:
-        # Cari nilai base_score yang menyebabkan error
-        val = str(config["learner"]["learner_model_param"]["base_score"])
-        
-        # Jika ada kurung siku (misal: "[0.5]"), buang kurungnya menjadi "0.5"
-        if val.startswith('[') and val.endswith(']'):
-            config["learner"]["learner_model_param"]["base_score"] = val.strip('[]')
-    except Exception:
-        pass
-        
-    # Kembalikan lagi ke format string JSON
-    return json.dumps(config)
-
-# Pasang jebakan: Ganti fungsi bawaan dengan fungsi patch kita
-booster.save_config = patched_save_config
-
-# Buat explainer SHAP satu kali di awal agar proses cepat (Sekarang akan berhasil)
-explainer = shap.TreeExplainer(model)
-
-# Kembalikan fungsi ke normal agar tidak mengganggu proses XGBoost selanjutnya
-booster.save_config = original_save_config
-# =======================================================
-
+# Buat explainer SHAP satu kali di awal agar proses cepat
+explainer = shap.TreeExplainer(model.get_booster())
 
 # Kamus Terjemahan untuk Orang Awam
 TERJEMAHAN_FITUR = {
