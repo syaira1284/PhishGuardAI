@@ -19,10 +19,6 @@ app = Flask(__name__)
 model = XGBClassifier()
 model.load_model("xgboost_phishing_model.json")
 
-# Tambahkan kembali atribut sklearn yang hilang setelah load JSON
-model.n_classes_ = 2
-model.classes_ = [0, 1]
-
 # Load urutan kolom
 X_columns = joblib.load("feature_columns.pkl")
 
