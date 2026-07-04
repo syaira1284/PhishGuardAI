@@ -9,6 +9,7 @@ import pickle
 import shap
 import io
 import base64
+import json  # TAMBAHAN PENTING: import json untuk trik anti-bug
 from feature_extraction import extract_features, normalize_url
 
 app = Flask(__name__)
@@ -20,8 +21,29 @@ with open('xgboost_phishing_model.pkl', 'rb') as f:
 with open('feature_columns.pkl', 'rb') as f:
     X_columns = pickle.load(f)
 
-# Buat explainer SHAP satu kali di awal agar proses cepat
+# =======================================================
+# TRIK ANTI-BUG: Patch untuk mengatasi bentrok SHAP & XGBoost 2.0
+# =======================================================
+original_loads = json.loads
+def patched_loads(s, *args, **kwargs):
+    parsed = original_loads(s, *args, **kwargs)
+    if isinstance(parsed, dict) and "learner" in parsed:
+        try:
+            params = parsed["learner"]["learner_model_param"]
+            if "base_score" in params:
+                val = str(params["base_score"])
+                # Hapus kurung siku jika ada (contoh: "[0.5]" menjadi "0.5")
+                if val.startswith('[') and val.endswith(']'):
+                    params["base_score"] = val.strip('[]')
+        except Exception:
+            pass
+    return parsed
+
+# Terapkan trik saat membuat explainer agar tidak terjadi ValueError
+json.loads = patched_loads
 explainer = shap.TreeExplainer(model)
+json.loads = original_loads # Kembalikan fungsi json ke normal
+# =======================================================
 
 # Kamus Terjemahan untuk Orang Awam
 TERJEMAHAN_FITUR = {
@@ -82,7 +104,7 @@ def predict():
         
         # Convert Gambar ke Base64 String
         img_buffer = io.BytesIO()
-        plt.savefig(img_buffer, format='png', dpi=120)
+        plt.savefig(img_buffer, format='png', dpi=120, bbox_inches='tight')
         img_buffer.seek(0)
         img_base64 = base64.b64encode(img_buffer.read()).decode('utf-8')
         plt.close() # Tutup plot agar RAM tidak bocor
