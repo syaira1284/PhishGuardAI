@@ -17,6 +17,16 @@ app = Flask(__name__)
 model = XGBClassifier()
 model.load_model("xgboost_phishing_model.json")
 
+# --- SUNTIKAN METADATA UNTUK MODEL JSON ---
+model.n_classes_ = 2
+
+import numpy as np
+try:
+    model.classes_ = np.array([0, 1])
+except AttributeError:
+    pass # Abaikan jika di versi ini atributnya dikunci (read-only)
+# ------------------------------------------
+
 with open('feature_columns.pkl', 'rb') as f:
     X_columns = pickle.load(f)
 
@@ -67,8 +77,8 @@ def predict():
         phishing_idx   = classes.index(0) 
         legitimate_idx = classes.index(1) 
         
-        phishing_prob = float(round(prob[0][phishing_idx] * 100, 1))
-        legitimate_prob = float(round(prob[0][legitimate_idx] * 100, 1))
+        phishing_prob = round(float(prob[0][phishing_idx] * 100, 1))
+        legitimate_prob = round(float(prob[0][legitimate_idx] * 100, 1))
         
         if pred == 1:
             status = "AMAN (LEGITIMATE)"
